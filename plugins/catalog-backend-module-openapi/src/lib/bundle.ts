@@ -31,9 +31,9 @@ const getProtocol = (refPath: string) => {
 };
 
 const getRelativePath = (baseUrl: string, refUrl: string) => {
-  const commonBase = baseUrl.substring(0, baseUrl.lastIndexOf("/") + 1);
-  return refUrl.replace(commonBase, "");
-}
+  const commonBase = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
+  return refUrl.replace(commonBase, '');
+};
 
 export type BundlerRead = (url: string) => Promise<Buffer>;
 
