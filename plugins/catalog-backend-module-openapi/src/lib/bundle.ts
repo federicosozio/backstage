@@ -30,7 +30,7 @@ const getProtocol = (refPath: string) => {
   return undefined;
 };
 
-const getRelativePath = (baseUrl: string, refUrl: string): string => {
+const getRelativePath = (baseUrl: string, refUrl: string) => {
   const commonBase = baseUrl.substring(0, baseUrl.lastIndexOf("/") + 1);
   return refUrl.replace(commonBase, "");
 }
