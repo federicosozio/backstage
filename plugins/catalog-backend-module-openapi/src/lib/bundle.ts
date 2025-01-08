@@ -30,6 +30,11 @@ const getProtocol = (refPath: string) => {
   return undefined;
 };
 
+const getRelativePath = (baseUrl: string, refUrl: string): string => {
+  const commonBase = baseUrl.substring(0, baseUrl.lastIndexOf("/") + 1);
+  return refUrl.replace(commonBase, "");
+}
+
 export type BundlerRead = (url: string) => Promise<Buffer>;
 
 export type BundlerResolveUrl = (url: string, base: string) => string;
@@ -57,8 +62,7 @@ export async function bundleFileWithRefs(
       return protocol === 'http' || protocol === 'https';
     },
     read: async ref => {
-      const file = ref.url.split('/');
-      const url = resolveUrl(file[file.length - 1], baseUrl);
+      const url = resolveUrl(getRelativePath(baseUrl, ref.url), baseUrl);
       return await read(url);
     },
   };
