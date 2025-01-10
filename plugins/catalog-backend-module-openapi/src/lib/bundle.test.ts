@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { bundleFileWithRefs } from './bundle';
+import { bundleFileWithRefs, BundlerRead, BundlerResolveUrl } from './bundle';
+import { ScmIntegrations } from '@backstage/integration';
+import { ConfigReader } from '@backstage/config';
 
 const specification = `
 openapi: "3.0.0"
@@ -176,5 +178,102 @@ channels:
     );
 
     expect(result).toEqual(expectedSchema.trimStart());
+  });
+});
+
+describe('bundleFileWithRefs - Testing getRelativePath scenarios', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const scmIntegrations = ScmIntegrations.fromConfig(new ConfigReader({}));
+
+  const resolveUrl: BundlerResolveUrl = jest.fn(
+    (url: string, base: string): string => {
+      return scmIntegrations.resolveUrl({ url, base });
+    },
+  );
+
+  const read: BundlerRead = jest.fn(async (url: string) => {
+    return Buffer.from(url);
+  });
+
+  const baseUrl =
+    'https://dev.azure.com/organization/project/_git/idp-configurations?path=%2Frepo%2Ftest-openapi.yaml&version=GBmaster';
+
+  it('should handle the relative path when refUrl has the same base as baseUrl', async () => {
+    const fileWithRefs = `
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Swagger Petstore
+  license:
+    name: MIT
+servers:
+  - url: http://petstore.swagger.io/v1
+paths:
+  /pets:
+    get:
+      $ref: "common.yaml"
+`;
+
+    const relativePath = 'common.yaml';
+    const expectedUrl =
+      'https://dev.azure.com/organization/project/_git/idp-configurations?path=%2Frepo%2Fcommon.yaml&version=GBmaster';
+
+    await bundleFileWithRefs(fileWithRefs, baseUrl, read, resolveUrl);
+
+    expect(resolveUrl).toHaveBeenCalledWith(relativePath, baseUrl);
+    expect(read).toHaveBeenCalledWith(expectedUrl);
+  });
+
+  it('should handle the relative path, with subdir, when refUrl has the same base as baseUrl', async () => {
+    const fileWithRefs = `
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Swagger Petstore
+  license:
+    name: MIT
+servers:
+  - url: http://petstore.swagger.io/v1
+paths:
+  /pets:
+    get:
+      $ref: "commons/common.yaml"
+`;
+
+    const relativePath = 'commons/common.yaml';
+    const expectedUrl =
+      'https://dev.azure.com/organization/project/_git/idp-configurations?path=%2Frepo%2Fcommons%2Fcommon.yaml&version=GBmaster';
+
+    await bundleFileWithRefs(fileWithRefs, baseUrl, read, resolveUrl);
+
+    expect(resolveUrl).toHaveBeenCalledWith(relativePath, baseUrl);
+    expect(read).toHaveBeenCalledWith(expectedUrl);
+  });
+
+  it('should handle the entire refUrl when there is no common base', async () => {
+    const fileWithRef = `
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Swagger Petstore
+  license:
+    name: MIT
+servers:
+  - url: http://petstore.swagger.io/v1
+paths:
+  /pets:
+    get:
+      $ref: "https://example.com/commons/common.yaml"
+`;
+
+    const refUrl = 'https://example.com/commons/common.yaml';
+
+    await bundleFileWithRefs(fileWithRef, baseUrl, read, resolveUrl);
+
+    expect(resolveUrl).toHaveBeenCalledWith(refUrl, baseUrl);
+    expect(read).toHaveBeenCalledWith(refUrl);
   });
 });
